@@ -123,8 +123,15 @@ async def export_data_handler(callback: types.CallbackQuery):
     all_tickets = await db.get_tickets_by_range(days)
     
     # Разделяем тикеты на Обычные и Заказы
-    tickets = [t for t in all_tickets if not t.message.startswith("[ЗАКАЗ МАТЕРИАЛОВ]")]
+    # Сначала убираем заказы
+    non_orders = [t for t in all_tickets if not t.message.startswith("[ЗАКАЗ МАТЕРИАЛОВ]")]
     orders = [t for t in all_tickets if t.message.startswith("[ЗАКАЗ МАТЕРИАЛОВ]")]
+    
+    # Теперь разделяем non_orders на Проблемы и Вопросы
+    problems = [t for t in non_orders if t.ticket_type == 'problem']
+    questions = [t for t in non_orders if t.ticket_type == 'question']
+    # Для совместимости старых записей (где ticket_type может быть не заполнен, но дефолт 'problem')
+    # можно считать problem по умолчанию. Но так как мы уже добавили колонку с дефолтом, все ок.
     
     wb = openpyxl.Workbook()
     
@@ -140,11 +147,11 @@ async def export_data_handler(callback: types.CallbackQuery):
         
         ws1.append([r.id, r.timestamp, r.branch_name, user_link_formula, r.report_data])
 
-    # --- Лист 2: Тикеты ---
-    ws2 = wb.create_sheet("Tickets")
+    # --- Лист 2: Проблемы (Problems) ---
+    ws2 = wb.create_sheet("Problems")
     ws2.append(["ID", "Date", "Status", "Branch", "Sender", "Message", "Responder", "Reply", "Reply Date"])
     
-    for t in tickets:
+    for t in problems:
         # Sender Link
         sender_display = t.user_name if t.user_name else str(t.user_id)
         sender_link = f'=HYPERLINK("tg://user?id={t.user_id}", "{sender_display}")'
@@ -157,6 +164,28 @@ async def export_data_handler(callback: types.CallbackQuery):
             responder_link = ""
 
         ws2.append([
+            t.id, t.created_at, t.status, t.branch_name, 
+            sender_link, t.message, 
+            responder_link, t.reply_message, t.reply_at
+        ])
+
+    # --- Лист 3: Вопросы (Questions) ---
+    ws_q = wb.create_sheet("Questions")
+    ws_q.append(["ID", "Date", "Status", "Branch", "Sender", "Message", "Responder", "Reply", "Reply Date"])
+    
+    for t in questions:
+        # Sender Link
+        sender_display = t.user_name if t.user_name else str(t.user_id)
+        sender_link = f'=HYPERLINK("tg://user?id={t.user_id}", "{sender_display}")'
+        
+        # Responder Link
+        if t.responder_id:
+            responder_display = t.responder_name if t.responder_name else str(t.responder_id)
+            responder_link = f'=HYPERLINK("tg://user?id={t.responder_id}", "{responder_display}")'
+        else:
+            responder_link = ""
+
+        ws_q.append([
             t.id, t.created_at, t.status, t.branch_name, 
             sender_link, t.message, 
             responder_link, t.reply_message, t.reply_at
@@ -231,7 +260,7 @@ async def admin_add_contact_start(callback: types.CallbackQuery, state: FSMConte
 @router.message(AdminPanelState.contact_dept)
 async def admin_add_contact_dept(message: types.Message, state: FSMContext):
     await state.update_data(contact_dept=message.text)
-    await message.answer("✍️ Введите данные контакта (Имя, Телефон):")
+    await message.answer("✍️ Введите данные контакта(ов).\nФормат: Имя - Телефон - Почта\n\nМожно несколько строк.")
     await state.set_state(AdminPanelState.contact_info)
 
 @router.message(AdminPanelState.contact_info)
