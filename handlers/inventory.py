@@ -11,7 +11,15 @@ router = Router()
 
 @router.message(F.text.in_({"📦 Отправить остатки", "📦 Қалдықтарды жіберу"}))
 async def start_inventory(message: types.Message, state: FSMContext):
-    user = await db.get_user(message.from_user.id)
+    await start_inventory_logic(message, state, message.from_user.id)
+
+@router.callback_query(F.data == "start_inventory")
+async def start_inventory_callback(callback: types.CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await start_inventory_logic(callback.message, state, callback.from_user.id)
+
+async def start_inventory_logic(message: types.Message, state: FSMContext, user_id: int):
+    user = await db.get_user(user_id)
     lang = user.language
 
     if not user.selected_branch_id:

@@ -1,8 +1,10 @@
 from aiogram import Router, types
 from aiogram.filters import Command
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
 import database.requests as db
+from utils.locales import get_text
 
 router = Router()
 
@@ -89,3 +91,41 @@ async def cmd_del_contact(message: types.Message):
             await message.answer("❌ Контакт не найден.")
     except ValueError:
         await message.answer("ID должен быть числом.")
+
+@router.message(Command("remind"))
+async def cmd_remind_report(message: types.Message):
+    """
+    Отправляет напоминание всем пользователям о сдаче отчета.
+    Использование: /remind 17:00 Пятницы
+    """
+    if not is_admin(message.from_user.id): return
+
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer("⚠️ Укажите дату/время.\nПример: `/remind завтра до 12:00`", parse_mode="Markdown")
+        return
+        
+    deadline_text = args[1]
+    users = await db.get_all_users()
+    
+    if not users:
+        await message.answer("Пользователей не найдено.")
+        return
+        
+    await message.answer(f"⏳ Рассылка напоминания для {len(users)} пользователей...")
+    
+    count = 0
+    for u in users:
+        lang = u.language
+        text = f"{get_text(lang, 'reminder_header')}\n\n{get_text(lang, 'reminder_body').format(date=deadline_text)}"
+        
+        builder = InlineKeyboardBuilder()
+        builder.button(text=get_text(lang, "btn_inventory"), callback_data="start_inventory")
+        
+        try:
+            await message.bot.send_message(u.telegram_id, text, parse_mode="Markdown", reply_markup=builder.as_markup())
+            count += 1
+        except Exception:
+            pass
+            
+    await message.answer(f"✅ Напоминание отправлено {count} из {len(users)} пользователей.")
