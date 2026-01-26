@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+
+# Environment Variables (Sensitive data!)
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Excel reports
+report_*.xlsx
