@@ -55,6 +55,7 @@ class FeedbackTicket(Base):
     user_name: Mapped[str] = mapped_column(String)
     branch_name: Mapped[str] = mapped_column(String)
     message: Mapped[str] = mapped_column(Text) # Текст обращения
+    ticket_type: Mapped[str] = mapped_column(String, default="problem") # problem, question
     status: Mapped[str] = mapped_column(String, default="open") # open, closed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     

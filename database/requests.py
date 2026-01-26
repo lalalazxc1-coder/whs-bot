@@ -80,13 +80,14 @@ async def get_last_reports(limit: int = 5):
         return result.scalars().all()
 
 # --- Tickets ---
-async def create_ticket(user_id: int, user_name: str, branch_name: str, message: str):
+async def create_ticket(user_id: int, user_name: str, branch_name: str, message: str, ticket_type: str = "problem"):
     async with async_session() as session:
         ticket = FeedbackTicket(
             user_id=user_id, 
             user_name=user_name, 
             branch_name=branch_name, 
             message=message,
+            ticket_type=ticket_type,
             status="open"
         )
         session.add(ticket)

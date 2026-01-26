@@ -13,7 +13,8 @@ router = Router()
 @router.message(Command("tickets"))
 async def cmd_tickets_list(message: types.Message):
     # Доступ только из группы или админам
-    if message.chat.id != config.SUPPORT_GROUP_ID and message.from_user.id not in config.ADMIN_IDS:
+    allowed_chats = [config.SUPPORT_GROUP_ID, config.QUESTIONS_GROUP_ID]
+    if message.chat.id not in allowed_chats and message.from_user.id not in config.ADMIN_IDS:
         return
 
     tickets = await db.get_open_tickets()
@@ -38,7 +39,8 @@ async def cmd_tickets_list(message: types.Message):
 @router.message(F.text.regexp(r"^\d+$"), StateFilter(None))
 async def ticket_id_reply_start(message: types.Message, state: FSMContext):
     # Доступ только из группы или админам
-    if message.chat.id != config.SUPPORT_GROUP_ID and message.from_user.id not in config.ADMIN_IDS:
+    allowed_chats = [config.SUPPORT_GROUP_ID, config.QUESTIONS_GROUP_ID]
+    if message.chat.id not in allowed_chats and message.from_user.id not in config.ADMIN_IDS:
         return
 
     try:

@@ -12,3 +12,6 @@ ADMIN_IDS = [int(x.strip()) for x in admin_ids_str.split(",") if x.strip().isdig
 # ID группы поддержки (обязательно начинается с -100 для супергрупп)
 group_id = os.getenv("SUPPORT_GROUP_ID", "")
 SUPPORT_GROUP_ID = int(group_id) if group_id.lstrip("-").isdigit() else None
+
+questions_id = os.getenv("QUESTIONS_GROUP_ID", "")
+QUESTIONS_GROUP_ID = int(questions_id) if questions_id.lstrip("-").isdigit() else None
