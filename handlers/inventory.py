@@ -26,18 +26,43 @@ async def start_inventory_logic(message: types.Message, state: FSMContext, user_
         await message.answer(get_text(lang, "inventory_start_err_branch"))
         return
 
+
+    # Проверяем, открыта ли инвентаризация
+    if not await db.is_inventory_open():
+        # Можно добавить текст в locales, но пока хардкод для скорости
+        if lang == "kz":
+            await message.answer("⚠️ Есеп қабылдау жабық. Әкімшінің хабарландыруын күтіңіз.")
+        else:
+            await message.answer("⚠️ Прием отчетов закрыт. Ожидайте уведомления от администратора.")
+        return
+
     items = await db.get_active_items()
     if not items:
         await message.answer(get_text(lang, "inventory_start_err_empty"))
         return
 
+    # Пока нет разделения товаров по типам в БД, спрашиваем все товары для всех.
+    # Но сохраняем отчет с пометкой сектора пользователя.
+    
     items_data = [{"id": i.id, "name": i.name} for i in items]
-    await state.update_data(items=items_data, current_index=0, report={}, branch_id=user.selected_branch_id, lang=lang)
+    
+    # Сохраняем сектор в состояние, чтобы потом передать в save_report
+    user_sector = user.sector if user.sector else "full"
+
+    await state.update_data(
+        items=items_data, 
+        current_index=0, 
+        report={}, 
+        branch_id=user.selected_branch_id, 
+        lang=lang,
+        user_sector=user_sector
+    )
     
     first_item = items_data[0]
     
     # Инструкция перед началом
-    await message.answer(get_text(lang, "inventory_intro"), reply_markup=types.ReplyKeyboardRemove())
+    sector_name = user_sector.upper()
+    await message.answer(f"{get_text(lang, 'inventory_intro')}\n\n🏷 Ваш сектор: **{sector_name}**", reply_markup=types.ReplyKeyboardRemove(), parse_mode="Markdown")
     
     await message.answer(f"{get_text(lang, 'enter_qty')} {first_item['name']}")
     await state.set_state(InventoryState.fill_item)
@@ -68,19 +93,25 @@ async def process_item_count(message: types.Message, state: FSMContext):
         branch_id = data['branch_id']
         branch = await db.get_branch_by_id(branch_id)
         branch_name = branch.name if branch else "Unknown"
+        user_sector = data.get("user_sector", "full")
         
         summary = "\n".join([f"{k}: {v}" for k, v in report.items()])
-        full_report = f"📊 REPORT\nBranch: {branch_name}\n\n{summary}"
+        full_report = f"📊 REPORT ({user_sector.upper()})\nBranch: {branch_name}\nUser: {message.from_user.full_name}\n\n{summary}"
         
-        await db.save_report(message.from_user.id, branch_name, summary, user_name=message.from_user.full_name)
+        # Сохраняем с учетом сектора
+        await db.save_report(
+            user_id=message.from_user.id, 
+            branch_name=branch_name, 
+            report_data=summary, 
+            user_name=message.from_user.full_name,
+            sector=user_sector
+        )
         
-        for admin_id in config.ADMIN_IDS:
-            try:
-                await message.bot.send_message(admin_id, f"New Report from {message.from_user.full_name}:\n{full_report}")
-            except:
-                pass
-        
-        # Если есть группа поддержки, можно туда тоже кинуть отчет, но пока оставим только админам в ЛС и БД
+        # Уведомления админам (опционально, можно убрать чтобы не спамить)
+        # for admin_id in config.ADMIN_IDS:
+        #     try:
+        #         await message.bot.send_message(admin_id, f"New Report:\n{full_report}")
+        #     except: pass
         
         await message.answer(get_text(lang, "report_accepted"), reply_markup=kb_reply.main_menu(lang))
         await state.clear()

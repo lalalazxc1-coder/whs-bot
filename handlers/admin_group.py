@@ -48,9 +48,25 @@ async def ticket_id_reply_start(message: types.Message, state: FSMContext):
     except ValueError:
         return
 
+    await start_reply_process(message, state, ticket_id)
+
+@router.callback_query(F.data.startswith("reply_ticket_"))
+async def ticket_reply_callback(callback: types.CallbackQuery, state: FSMContext):
+    # Доступ только из группы или админам
+    allowed_chats = [config.SUPPORT_GROUP_ID, config.QUESTIONS_GROUP_ID]
+    if callback.message.chat.id not in allowed_chats and callback.from_user.id not in config.ADMIN_IDS:
+        await callback.answer("Нет прав.", show_alert=True)
+        return
+
+    ticket_id = int(callback.data.split("_")[2])
+    await start_reply_process(callback.message, state, ticket_id)
+    await callback.answer()
+
+async def start_reply_process(message: types.Message, state: FSMContext, ticket_id: int):
     ticket = await db.get_ticket(ticket_id)
     if not ticket:
-        # Не отвечаем, если тикета нет, чтобы не спамить на любые цифры
+        # Если тикет не найден, сообщаем
+        await message.reply("❌ Тикет не найден.")
         return
     
     if ticket.status == "closed":
@@ -59,6 +75,9 @@ async def ticket_id_reply_start(message: types.Message, state: FSMContext):
     
     await state.update_data(ticket_id=ticket.id, reply_to_user_id=ticket.user_id)
     await state.set_state(AdminReplyState.write_reply)
+    
+    # Чтобы ответить на сообщение бота (с кнопкой), если это callback - reply сработает на сообщение бота
+    # Если это сообщение юзера с ID - reply на него
     
     await message.reply(
         f"✍️ Введите ответ для заявки **#{ticket.id}**\n"

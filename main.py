@@ -9,6 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 import config
 from database.models import init_db
 from handlers import basic, inventory, feedback, admin, admin_group, order, admin_panel
+from utils import scheduler
 
 async def main():
     # Инициализация БД
@@ -29,6 +30,10 @@ async def main():
     )
 
     logging.basicConfig(level=logging.INFO)
+    
+    # Запуск планировщика
+    scheduler.start_scheduler(bot)
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

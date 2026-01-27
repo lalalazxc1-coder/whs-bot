@@ -9,3 +9,10 @@ def main_menu(lang="ru"):
         [KeyboardButton(text=get_text(lang, "btn_settings"))]
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+def select_sector_kb():
+    kb = [
+        [KeyboardButton(text="🛢 OIL (Масла)"), KeyboardButton(text="🔧 AP (Запчасти)")],
+        [KeyboardButton(text="🏢 Весь склад (OIL + AP)")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)

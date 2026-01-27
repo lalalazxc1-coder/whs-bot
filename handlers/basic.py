@@ -21,29 +21,22 @@ async def cmd_help(message: types.Message):
         "🔹 `📦 Отправить остатки` - Сдать отчет по инвентаризации\n"
         "🔹 `📦 Заказ материалов` - Заказать расходники\n"
         "🔹 `📞 Контакты` - Номера телефонов отделов\n"
-        "🔹 `⚙️ Настройки` - Смена языка и филиала\n"
-        "🔹 `⚠️ Сообщить о проблеме` - Написать о проблеме (в поддержку)\n"
-        "🔹 `❓ Задать вопрос` - Задать вопрос по логистике (консультация)\n"
+        "🔹 `⚙️ Настройки` - Смена языка, филиала и сектора\n"
+        "🔹 `⚠️ Сообщить о проблеме` - Написать о проблеме\n"
+        "🔹 `❓ Задать вопрос` - Задать вопрос по логистике\n"
     )
     
     if user_id in config.ADMIN_IDS:
         text += (
             "\n👮‍♂️ **Admin Help:**\n"
-            "🔸 `/admin` - **Панель Администратора**\n"
-            "   (Рассылки, Отчеты Excel, Управление контактами)\n\n"
-            "🔸 **/remind <Дата/Время>** - Рассылка напоминания о сдаче отчета.\n"
-            "   Бот отправит сообщение всем сотрудникам с кнопкой 'Отправить остатки'.\n"
-            "   Пример: `/remind Завтра до 17:00`\n\n"
-            "🔸 `/tickets` - Список открытых заявок\n"
-            "🔸 `/report` - Последние 5 отчетов текстом\n"
-            "🔸 `/add_branch <Name>` - Создать филиал\n"
-            "🔸 `/add_item <Name>` - Создать товар\n\n"
-            "🔸 **Контакты:**\n"
-            "   Удобнее управлять ими через кнопку `/admin` -> Контакты.\n"
-            "   Команды для ручного ввода:\n"
-            "   `/add_contact Отдел Имя Телефон Почта`\n"
-            "   `/contacts_admin` (список ID), `/del_contact <ID>`\n\n"
-            "🔸 *В ответ на тикет в чате:* просто отправьте `ID` тикета цифрами."
+            "🔸 `/admin` - **Главное меню администратора**\n"
+            "   (Отчеты, Авто-расписание, Контакты, Филиалы, Товары, Тикеты)\n\n"
+            "🔸 **/remind <Text>** - Рассылка напоминания (устар. лучше через меню)\n"
+            "   Настройте авто-открытие в меню `/admin` -> Авто-расписание.\n"
+            "   Или открывайте вручную.\n\n"
+            "🔸 **Тикеты и Заказы (Группы):**\n"
+            "   Отвечайте на них прямо из меню `/admin` кнопкой 'Ответить'.\n"
+            "   Так же можно отвечать в Группах Поддержки, нажав кнопку под сообщением."
         )
         
     await message.answer(text, parse_mode="Markdown")
@@ -95,16 +88,42 @@ async def cb_language_select(callback: types.CallbackQuery):
     
     await callback.answer()
 
+from states import RegistrationState
+
 @router.callback_query(F.data.startswith("branch_"))
-async def cb_branch_select(callback: types.CallbackQuery):
+async def cb_branch_select(callback: types.CallbackQuery, state: FSMContext):
     branch_id = int(callback.data.split("_")[1])
     await db.update_user_branch(callback.from_user.id, branch_id)
     
     user = await db.get_user(callback.from_user.id)
-    lang = user.language
+    lang = user.language if user else "ru"
     
-    await callback.message.answer(get_text(lang, "branch_saved"), reply_markup=kb_reply.main_menu(lang))
+    # Теперь спрашиваем сектор
+    await callback.message.answer(
+        "Выберите ваш сектор / Секторды таңдаңыз:", 
+        reply_markup=kb_reply.select_sector_kb()
+    )
+    await state.set_state(RegistrationState.select_sector)
     await callback.answer()
+
+@router.message(RegistrationState.select_sector)
+async def cb_sector_select(message: types.Message, state: FSMContext):
+    user = await db.get_user(message.from_user.id)
+    lang = user.language if user else "ru"
+    
+    # Определяем код сектора по тексту
+    text = message.text
+    sector_code = "full"
+    if "OIL" in text and "AP" not in text:
+        sector_code = "oil"
+    elif "AP" in text and "OIL" not in text:
+        sector_code = "ap"
+    # иначе full (Весь склад)
+    
+    await db.update_user_sector(message.from_user.id, sector_code)
+    
+    await message.answer(get_text(lang, "branch_saved"), reply_markup=kb_reply.main_menu(lang))
+    await state.clear()
 
 # --- Настройки ---
 
