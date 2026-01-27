@@ -98,6 +98,14 @@ async def cb_branch_select(callback: types.CallbackQuery, state: FSMContext):
     user = await db.get_user(callback.from_user.id)
     lang = user.language if user else "ru"
     
+    # Если Головной офис - пропускаем выбор сектора
+    if user.branch and user.branch.name == "Головной офис":
+        await db.update_user_sector(callback.from_user.id, "full")
+        await callback.message.answer(get_text(lang, "branch_saved"), reply_markup=kb_reply.main_menu(lang))
+        await state.clear()
+        await callback.answer()
+        return
+
     # Теперь спрашиваем сектор
     await callback.message.answer(
         "Выберите ваш сектор / Секторды таңдаңыз:", 

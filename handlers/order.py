@@ -46,6 +46,12 @@ async def order_start(message: types.Message, state: FSMContext):
         await message.answer(get_text(lang, "inventory_start_err_branch"))
         return
 
+    # Головной офис check
+    if user.branch and user.branch.name == "Головной офис":
+        msg = "Сізге материалдарға тапсырыс беру қажет емес." if lang == "kz" else "Вам не нужно заказывать материалы."
+        await message.answer(msg)
+        return
+
     items = await db.get_active_items()
     if not items:
         await message.answer(get_text(lang, "inventory_start_err_empty"))

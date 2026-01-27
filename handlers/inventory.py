@@ -26,6 +26,12 @@ async def start_inventory_logic(message: types.Message, state: FSMContext, user_
         await message.answer(get_text(lang, "inventory_start_err_branch"))
         return
 
+    # Головной офис check
+    if user.branch and user.branch.name == "Головной офис":
+        msg = "Сізге есеп тапсыру қажет емес." if lang == "kz" else "Вам не нужно сдавать отчеты."
+        await message.answer(msg)
+        return
+
 
     # Проверяем, открыта ли инвентаризация
     if not await db.is_inventory_open():

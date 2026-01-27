@@ -275,14 +275,18 @@ async def count_contacts():
         return result.scalar()
 
 async def get_users_pending_report():
-    """Возвращает пользователей, которые не сдали отчет за последние 24 часа"""
+    """Возвращает пользователей, которые не сдали отчет за последние 24 часа (кроме Головного офиса)"""
     async with async_session() as session:
         cutoff = datetime.utcnow() - timedelta(hours=24)
         # Subquery: ID пользователей, сдавших отчет
         subquery = select(InventoryReport.user_id).where(InventoryReport.timestamp >= cutoff)
         
-        # Select users NOT IN subquery
-        stmt = select(User).where(User.telegram_id.not_in(subquery))
+        # Select users NOT IN subquery AND Branch != Головной офис
+        # Используем join для фильтрации по Branch.name
+        stmt = select(User).join(Branch).options(selectinload(User.branch)).where(
+            User.telegram_id.not_in(subquery),
+            Branch.name != "Головной офис"
+        )
         result = await session.execute(stmt)
         return result.scalars().all()
 
