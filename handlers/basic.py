@@ -99,8 +99,9 @@ async def cb_branch_select(callback: types.CallbackQuery, state: FSMContext):
     lang = user.language if user else "ru"
     
     # Если Головной офис - пропускаем выбор сектора
-    if user.branch and user.branch.name == "Головной офис":
-        await db.update_user_sector(callback.from_user.id, "full")
+    # Если Головной офис - пропускаем выбор сектора
+    if user.branch and user.branch.name == config.HEAD_OFFICE_NAME:
+        await db.update_user_sector(callback.from_user.id, config.SECTOR_FULL)
         await callback.message.answer(get_text(lang, "branch_saved"), reply_markup=kb_reply.main_menu(lang))
         await state.clear()
         await callback.answer()
@@ -108,7 +109,7 @@ async def cb_branch_select(callback: types.CallbackQuery, state: FSMContext):
 
     # Теперь спрашиваем сектор
     await callback.message.answer(
-        "Выберите ваш сектор / Секторды таңдаңыз:", 
+        get_text(lang, "select_sector_header"), 
         reply_markup=kb_reply.select_sector_kb()
     )
     await state.set_state(RegistrationState.select_sector)
@@ -121,11 +122,11 @@ async def cb_sector_select(message: types.Message, state: FSMContext):
     
     # Определяем код сектора по тексту
     text = message.text
-    sector_code = "full"
+    sector_code = config.SECTOR_FULL
     if "OIL" in text and "AP" not in text:
-        sector_code = "oil"
+        sector_code = config.SECTOR_OIL
     elif "AP" in text and "OIL" not in text:
-        sector_code = "ap"
+        sector_code = config.SECTOR_AP
     # иначе full (Весь склад)
     
     await db.update_user_sector(message.from_user.id, sector_code)
@@ -165,7 +166,7 @@ async def cmd_contacts(message: types.Message):
     contacts = await db.get_contacts()
     
     if not contacts:
-        await message.answer("Контакты еще не добавлены.", parse_mode="Markdown")
+        await message.answer(get_text(lang, "contacts_empty"), parse_mode="Markdown")
         return
 
     # Группируем по отделам
@@ -176,11 +177,11 @@ async def cmd_contacts(message: types.Message):
         grouped[c.department].append(c.info)
     
     # Формируем текст
-    header = "📞 **Контакты отделов / Контактілер:**\n\n"
+    header = get_text(lang, "contacts_header")
     body = ""
     
     for dept, infos in grouped.items():
-        body += f"🏢 **{dept}:**\n"
+        body += get_text(lang, "contacts_dept_format").format(dept=dept)
         for info in infos:
             body += f"{info}\n"
         body += "\n"

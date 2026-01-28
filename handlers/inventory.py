@@ -27,19 +27,16 @@ async def start_inventory_logic(message: types.Message, state: FSMContext, user_
         return
 
     # Головной офис check
-    if user.branch and user.branch.name == "Головной офис":
-        msg = "Сізге есеп тапсыру қажет емес." if lang == "kz" else "Вам не нужно сдавать отчеты."
+    if user.branch and user.branch.name == config.HEAD_OFFICE_NAME:
+        msg = get_text(lang, "inventory_head_office_deny")
         await message.answer(msg)
         return
 
 
     # Проверяем, открыта ли инвентаризация
+    # Проверяем, открыта ли инвентаризация
     if not await db.is_inventory_open():
-        # Можно добавить текст в locales, но пока хардкод для скорости
-        if lang == "kz":
-            await message.answer("⚠️ Есеп қабылдау жабық. Әкімшінің хабарландыруын күтіңіз.")
-        else:
-            await message.answer("⚠️ Прием отчетов закрыт. Ожидайте уведомления от администратора.")
+        await message.answer(get_text(lang, "inventory_closed_warning"))
         return
 
     items = await db.get_active_items()
@@ -53,7 +50,7 @@ async def start_inventory_logic(message: types.Message, state: FSMContext, user_
     items_data = [{"id": i.id, "name": i.name} for i in items]
     
     # Сохраняем сектор в состояние, чтобы потом передать в save_report
-    user_sector = user.sector if user.sector else "full"
+    user_sector = user.sector if user.sector else config.SECTOR_FULL
 
     await state.update_data(
         items=items_data, 
@@ -67,8 +64,9 @@ async def start_inventory_logic(message: types.Message, state: FSMContext, user_
     first_item = items_data[0]
     
     # Инструкция перед началом
+    # Инструкция перед началом
     sector_name = user_sector.upper()
-    await message.answer(f"{get_text(lang, 'inventory_intro')}\n\n🏷 Ваш сектор: **{sector_name}**", reply_markup=types.ReplyKeyboardRemove(), parse_mode="Markdown")
+    await message.answer(f"{get_text(lang, 'inventory_intro')}\n\n{get_text(lang, 'inventory_intro_sector').format(sector=sector_name)}", reply_markup=types.ReplyKeyboardRemove(), parse_mode="Markdown")
     
     await message.answer(f"{get_text(lang, 'enter_qty')} {first_item['name']}")
     await state.set_state(InventoryState.fill_item)
@@ -99,7 +97,7 @@ async def process_item_count(message: types.Message, state: FSMContext):
         branch_id = data['branch_id']
         branch = await db.get_branch_by_id(branch_id)
         branch_name = branch.name if branch else "Unknown"
-        user_sector = data.get("user_sector", "full")
+        user_sector = data.get("user_sector", config.SECTOR_FULL)
         
         summary = "\n".join([f"{k}: {v}" for k, v in report.items()])
         full_report = f"📊 REPORT ({user_sector.upper()})\nBranch: {branch_name}\nUser: {message.from_user.full_name}\n\n{summary}"

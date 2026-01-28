@@ -15,3 +15,10 @@ SUPPORT_GROUP_ID = int(group_id) if group_id.lstrip("-").isdigit() else None
 
 questions_id = os.getenv("QUESTIONS_GROUP_ID", "")
 QUESTIONS_GROUP_ID = int(questions_id) if questions_id.lstrip("-").isdigit() else None
+
+# --- CONSTANTS ---
+HEAD_OFFICE_NAME = "Головной офис"
+
+SECTOR_FULL = "full"
+SECTOR_OIL = "oil"
+SECTOR_AP = "ap"

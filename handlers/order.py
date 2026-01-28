@@ -47,8 +47,9 @@ async def order_start(message: types.Message, state: FSMContext):
         return
 
     # Головной офис check
-    if user.branch and user.branch.name == "Головной офис":
-        msg = "Сізге материалдарға тапсырыс беру қажет емес." if lang == "kz" else "Вам не нужно заказывать материалы."
+    # Головной офис check
+    if user.branch and user.branch.name == config.HEAD_OFFICE_NAME:
+        msg = get_text(lang, "order_head_office_deny")
         await message.answer(msg)
         return
 

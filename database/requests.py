@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from database.models import async_session, User, Branch, Item, InventoryReport, FeedbackTicket, DepartmentContact
+import config
 
 async def get_branches():
     async with async_session() as session:
@@ -285,7 +286,7 @@ async def get_users_pending_report():
         # Используем join для фильтрации по Branch.name
         stmt = select(User).join(Branch).options(selectinload(User.branch)).where(
             User.telegram_id.not_in(subquery),
-            Branch.name != "Головной офис"
+            Branch.name != config.HEAD_OFFICE_NAME
         )
         result = await session.execute(stmt)
         return result.scalars().all()
